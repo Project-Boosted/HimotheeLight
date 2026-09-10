@@ -18,11 +18,11 @@ jobs:
 
       - name: Rebuild and verify v0.8.0 release
         shell: pwsh
-        run: .\Build\ Release\ Package.ps1
+        run: "& '.\\Build Release Package.ps1'"
 
       - name: Expand verified release package
         shell: pwsh
-        run: Expand-Archive -Path releases/HimotheeLight-v0.8.0.zip -DestinationPath _release -Force
+        run: Expand-Archive -Path 'releases/HimotheeLight-v0.8.0.zip' -DestinationPath '_release' -Force
 
       - name: Install dependencies
         shell: pwsh
@@ -45,3 +45,9 @@ jobs:
           node --check browser-extension/background.js
           node --check browser-extension/content.js
           node --check browser-extension/capture.js
+
+      - name: Verify package version
+        shell: pwsh
+        run: |
+          cd _release/HimotheeLight-v0.8.0
+          python -c "from himotheelight import __version__; assert __version__ == '0.8.0'; print('HimotheeLight', __version__)"

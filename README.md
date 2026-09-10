@@ -1,150 +1,153 @@
-# HimotheeLight v0.8.0 — Philips Hue Integration
+# HimotheeLight v0.8.0
 
-HimotheeLight can now run **Philips Hue lights and WLED controllers together** from the same Autodarts lighting engine. Hue is connected natively through a local Philips Hue Bridge; it is not emulated as WLED.
+![Tests](https://github.com/Project-Boosted/HimotheeLight/actions/workflows/tests.yml/badge.svg)
 
-## New Philips Hue page
+**Autodarts-reactive smart lighting for WLED and Philips Hue.**
 
-Open **Philips Hue** from the sidebar. From there you can:
+HimotheeLight is a Windows-first local lighting controller that listens to Autodarts/Board Manager events and drives WLED controllers and Philips Hue lights from the same trigger, scene and profile engine.
 
-- discover Hue Bridges using Philips Hue's discovery service;
-- enter a Hue Bridge IP/hostname manually;
-- pair HimotheeLight by pressing the **physical link button** on the Hue Bridge and then clicking **Pair After Button Press**;
-- test the bridge;
-- sync/rescan lights;
-- enable/disable individual Hue lights;
-- test a Hue light;
-- configure each Hue light's Idle and Active state.
+## Highlights
 
-The generated Hue application key/client key are stored only in HimotheeLight's local config. Browser-facing config responses and shared profile exports do not expose those credentials.
+- WLED device support with effects, palettes, speed, intensity, presets and segments
+- Native Philips Hue Bridge support using the local Hue API
+- Idle and Active/match lighting states
+- Autodarts Board Manager integration
+- Authenticated Autodarts Game Bridge for match-aware events
+- Individual dart triggers such as T20, D20 and Bull
+- Visit-score triggers including 100+, 140+ and 180
+- Bust, Game Shot, Match Shot, turn and target triggers
+- Device groups containing WLED and Hue endpoints
+- Multi-device scenes
+- Timed scene choreography with steps, delays, holds and repeats
+- Lighting profiles
+- Safe profile import/export with endpoint mapping for community sharing
+- 60-second inactivity Idle latch
 
-## What Hue lights can do in HimotheeLight
+## Takeout flow
 
-Once paired, each Hue light becomes a normal HimotheeLight lighting endpoint alongside WLED. Hue lights can participate in:
-
-- **Idle** lighting
-- **Active/match** lighting
-- individual dart triggers
-- T20 / Bull / visit-score triggers
-- 100+ / 140+ / 180 effects
-- Bust
-- Game Shot
-- Match Shot
-- player-turn/target triggers
-- fixed takeout sequence
-- device groups
-- multi-device scenes
-- scene choreography
-- imported/exported lighting profiles
-
-You can mix both technologies in one scene. For example:
-
-- Dartboard WLED → fireworks
-- Ceiling WLED → chase
-- Hue room bulb → purple
-- Hue lamp → white flash
-
-They are dispatched by the same trigger engine.
-
-## Hue colour behaviour
-
-HimotheeLight uses the common lighting fields for Hue:
-
-- On / Off
-- Brightness
-- **Colour 1**
-- Transition/fade duration
-
-For a **colour-capable Hue light**, Colour 1 is converted to Hue API CIE xy colour.
-
-For a **white/dimming-only Hue light**, HimotheeLight still controls on/off and brightness, but it cannot make that lamp physically display yellow/red/purple.
-
-WLED-only fields such as WLED effect ID, palette, speed, intensity and presets continue to apply to WLED endpoints. In a mixed scene, Hue simply ignores those WLED-specific fields.
-
-## Takeout flow with Hue
-
-The existing v0.7.4 takeout/high-score sequence now works across enabled WLED and Hue endpoints:
+HimotheeLight follows the rhythm of a real visit:
 
 **Dart 3 lands**
 → best matching T20/high-score/180 effect plays first
 → **YELLOW** while the darts remain in the board
-→ player removes darts
+→ player removes the darts
 → **RED for 500 ms**
-→ restore each endpoint's configured Active/match state
+→ restore the configured Active/match lighting
 
-Colour-capable Hue bulbs display the yellow/red colours. White-only Hue bulbs follow brightness/on-off but cannot reproduce those colours.
+If the player removes the darts while a score animation is still running, HimotheeLight lets that score effect finish first, skips the no-longer-needed yellow wait, then performs the red acknowledgement and restores Active.
 
-Game Shot and Match Shot protection remains unchanged.
+Game Shot and Match Shot celebrations are protected from the takeout sequence.
 
-## Pairing a Hue Bridge
+## Quick start — Windows
 
-1. Make sure the PC running HimotheeLight and the Hue Bridge are on the same local network.
-2. Start HimotheeLight v0.8.0.
-3. Open **Philips Hue**.
-4. Click **Discover Bridges**, or type the bridge IP manually.
-5. Press the **physical button on top of the Hue Bridge**.
-6. Immediately click **Pair After Button Press**.
-7. HimotheeLight creates a local Hue application key and retrieves the Hue lights.
-8. Use **Sync Lights** later if you add/rename/remove Hue lights.
+1. Clone or download this repository.
+2. Run **`Setup HimotheeLight.bat`** once.
+3. Run **`Run HimotheeLight.bat`**.
+4. HimotheeLight opens its local dashboard in your browser.
+5. Add your WLED devices and/or pair a Philips Hue Bridge.
+6. Open **Autodarts** in HimotheeLight and configure the Board Manager connection.
+7. Install the included browser bridge if you want full match-aware Autodarts events.
 
-Bare bridge IPs default to HTTPS. Manual `http://` remains accepted for legacy/testing only; current Hue API v2 communication uses HTTPS.
+Local configuration is stored under:
 
-## Profile sharing with Hue
+`%APPDATA%\HimotheeLight`
 
-v0.8.0 extends the v0.7.4 portable-profile system:
+That local state, logs and Hue credentials are excluded from Git.
 
-- Hue lights appear as **Hue slots** in exported profiles.
-- Hue Bridge IP/hostname, application key and client key are **never exported**.
-- On import, a Hue slot can only map to a local Hue light.
-- WLED slots can only map to WLED controllers.
-- Name matching still suggests compatible local endpoints automatically.
+## Autodarts browser bridge
 
-This lets the community share a mixed WLED + Hue setup without sharing network or bridge credentials.
+For the full Game Bridge:
+
+1. Open `chrome://extensions` or `edge://extensions`.
+2. Enable **Developer mode**.
+3. Choose **Load unpacked**.
+4. Select this repository's `browser-extension` folder.
+5. Refresh the Autodarts web app.
+
+See **`INSTALL AUTODARTS BRIDGE.txt`** for the short installation guide.
+
+## Philips Hue
+
+Open the **Philips Hue** page in HimotheeLight. You can discover bridges automatically or enter the bridge IP/hostname manually.
+
+To pair:
+
+1. Make sure the PC and Hue Bridge are on the same local network.
+2. Press the physical link button on the Hue Bridge.
+3. Click **Pair After Button Press** in HimotheeLight.
+4. Sync the bridge lights.
+
+Colour-capable Hue lights follow on/off, brightness, Colour 1 and transition timing. White/dimming-only Hue lights still follow on/off and brightness but cannot physically display red/yellow/purple colours.
+
+WLED remains the preferred endpoint for fast addressable animations; Hue is used for synchronized event-driven colour/brightness changes.
+
+## Profile sharing
+
+Profiles can be exported as portable JSON and shared with other HimotheeLight users.
+
+Exports can contain:
+
+- Idle/Active modes
+- triggers
+- priorities and durations
+- referenced scenes and choreography
+- referenced device groups
+- endpoint slots
+
+They deliberately do **not** contain WLED IP addresses, Hue Bridge credentials, Autodarts connection details or logs.
+
+When importing, the recipient maps shared endpoint slots to their own devices. WLED slots map only to WLED, and Hue slots map only to Hue.
+
+## Reproducible v0.8.0 release
+
+The exact tested v0.8.0 package is represented under `releases/v0.8.0/` as Git-safe Base64 chunks because the repository connector could not reliably upload the binary ZIP directly.
+
+Run:
+
+`Build Release Package.bat`
+
+HimotheeLight concatenates those chunks, rebuilds `releases/HimotheeLight-v0.8.0.zip`, and refuses to keep the output unless its SHA-256 is exactly:
+
+`4946e20d1e8620a3b7f42d72f395528e77ca79e60995e1a9dc36e7bc76cc8da1`
+
+For normal development or use, you do **not** need to rebuild the archive—the complete readable v0.8.0 source is checked into the repository directly.
+
+## Testing
+
+GitHub Actions validates both forms of the project on every push and pull request:
+
+- the checked-in readable source
+- the SHA-256 verified reproducible v0.8.0 package
+
+The workflow runs the Python test suite, compiles Python modules, validates browser JavaScript and checks the application version.
+
+Run the Python suite locally with:
+
+`python -m unittest discover -s tests -v`
+
+## Building a Windows EXE
+
+Run:
+
+`Build Windows EXE.bat`
+
+The repository includes `HimotheeLight.spec` for the PyInstaller build.
+
+## Repository structure
+
+- `himotheelight/` — backend, lighting engine, Autodarts, WLED and Hue integrations
+- `web/` — local browser dashboard
+- `browser-extension/` — Autodarts Game Bridge
+- `tests/` — automated regression suite
+- `.github/workflows/` — CI and verified-source synchronization
+- `releases/v0.8.0/` — reproducible release data
+- `app.py` — application entry point
+- Windows `.bat` files — setup, run and build helpers
 
 ## Upgrade from v0.7.4
 
-1. Extract `HimotheeLight-v0.8.0.zip`.
-2. Run **Setup HimotheeLight.bat** once in the new folder.
-3. Run **Run HimotheeLight.bat**.
-4. Your existing `%APPDATA%\\HimotheeLight\\config.json` is migrated from schema 7 to **schema 8**.
-5. Existing WLED devices, profiles, triggers, scenes, groups, takeout logic and Autodarts settings are preserved.
-6. Open **Philips Hue** to pair a bridge.
+v0.8.0 migrates configuration schema 7 to schema 8 while retaining existing WLED devices, profiles, triggers, scenes, groups, takeout behavior and Autodarts settings. Open **Philips Hue** after upgrading to pair a bridge.
 
-The Autodarts browser Game Bridge protocol has not changed, so if your existing v0.7.4 browser bridge is working you do **not** need to reinstall it for Hue support. The included bridge files are simply versioned v0.8.0 for package consistency.
+The Autodarts Game Bridge protocol did not change for v0.8.0, so an already-working v0.7.4 bridge does not need to be reinstalled solely for Hue support.
 
-## Hue vs WLED effects
-
-Philips Hue's normal REST API is well suited to event-driven Autodarts changes such as T20, takeout, 180, Bust or Match Shot. It is not intended to be a high-frequency continuous LED streaming engine. WLED remains the better endpoint for fast addressable animations; HimotheeLight uses Hue for synchronized colour/brightness/transition changes alongside those WLED effects.
-
-## Existing functionality retained
-
-v0.8.0 keeps:
-
-- WLED device support
-- Idle/Active modes
-- Board Manager connection
-- authenticated Autodarts Game Bridge
-- trigger priority and duration
-- score-effect-before-takeout ordering
-- yellow → red → Active takeout flow
-- 60-second latched inactivity Idle
-- device groups
-- multi-device scenes
-- timed scene choreography/repeats
-- lighting profiles
-- safe profile import/export and endpoint mapping
-
-## Repository quick start
-
-The exact tested public package is stored at **`releases/HimotheeLight-v0.8.0.zip`**.
-
-On Windows:
-
-1. Clone or download this repository.
-2. Extract `releases/HimotheeLight-v0.8.0.zip`.
-3. Open the extracted `HimotheeLight-v0.8.0` folder.
-4. Run **Setup HimotheeLight.bat** once.
-5. Run **Run HimotheeLight.bat**.
-
-The release archive contains the complete Python backend, browser dashboard, Autodarts browser bridge, Windows helper scripts, PyInstaller specification and the full automated test suite. Local configuration is stored under `%APPDATA%\\HimotheeLight`; config, logs, Hue credentials and build output are excluded by `.gitignore`.
-
-GitHub Actions expands the exact release archive, runs the Python tests, and validates the browser JavaScript on every push and pull request.
+See **`CHANGELOG.md`** for the full version history.

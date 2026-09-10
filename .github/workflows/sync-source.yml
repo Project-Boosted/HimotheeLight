@@ -11,9 +11,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-verified-v0.8.0-source
+  cancel-in-progress: false
+
 jobs:
   sync-source:
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,4 +79,5 @@ jobs:
             exit 0
           }
           git commit -m 'Sync browsable source from verified v0.8.0 release'
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main

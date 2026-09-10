@@ -23,21 +23,38 @@ def normalize_bridge_host(host: str) -> str:
     parsed = urlparse(value)
     if parsed.scheme not in {"https", "http"} or not parsed.netloc:
         raise HueError("Enter a valid Hue Bridge IP/hostname, for example 192.168.1.20")
+    # Hue local API should use TLS. Accept an explicit http:// only for old/test
+    # bridges, but default every bare address to https://.
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def _local_ssl_context() -> ssl.SSLContext:
+    # Hue bridges use a locally served certificate whose hostname normally does
+    # not match the bridge IP typed by the user. Authentication still relies on
+    # physical push-link pairing and the application key. We therefore encrypt
+    # the LAN connection while disabling hostname/CA verification for the local
+    # bridge endpoint, matching common Hue local-API client behaviour.
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return ctx
 
 
-def _request_json(base_url: str, path: str, *, method: str = "GET", payload: Dict[str, Any] | None = None,
-                  application_key: str | None = None, timeout: float = 3.0) -> Any:
+def _request_json(
+    base_url: str,
+    path: str,
+    *,
+    method: str = "GET",
+    payload: Dict[str, Any] | None = None,
+    application_key: str | None = None,
+    timeout: float = 3.0,
+) -> Any:
     base = normalize_bridge_host(base_url)
     url = base + path
-    headers = {"Accept": "application/json", "User-Agent": "HimotheeLight/0.8.0"}
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "HimotheeLight/0.8.0",
+    }
     if application_key:
         headers["hue-application-key"] = str(application_key)
     data = None
@@ -67,6 +84,10 @@ def _request_json(base_url: str, path: str, *, method: str = "GET", payload: Dic
 
 
 def discover_bridges(timeout: float = 4.0) -> List[Dict[str, Any]]:
+    """Use Philips' official broker discovery endpoint.
+
+    Manual IP entry remains available when the PC has no internet connection.
+    """
     req = urllib.request.Request(
         "https://discovery.meethue.com/",
         headers={"Accept": "application/json", "User-Agent": "HimotheeLight/0.8.0"},
@@ -95,7 +116,10 @@ def discover_bridges(timeout: float = 4.0) -> List[Dict[str, Any]]:
 
 
 def pair_bridge(base_url: str, device_name: str = "HimotheeLight") -> Dict[str, Any]:
-    payload = {"devicetype": f"HimotheeLight#{str(device_name or 'Windows PC')[:24]}", "generateclientkey": True}
+    payload = {
+        "devicetype": f"HimotheeLight#{str(device_name or 'Windows PC')[:24]}",
+        "generateclientkey": True,
+    }
     raw = _request_json(base_url, "/api", method="POST", payload=payload, timeout=5.0)
     if not isinstance(raw, list) or not raw:
         raise HueError("Hue Bridge returned an unexpected pairing response")
@@ -104,7 +128,10 @@ def pair_bridge(base_url: str, device_name: str = "HimotheeLight") -> Dict[str, 
             continue
         success = row.get("success")
         if isinstance(success, dict) and success.get("username"):
-            return {"application_key": str(success["username"]), "client_key": str(success.get("clientkey") or "")}
+            return {
+                "application_key": str(success["username"]),
+                "client_key": str(success.get("clientkey") or ""),
+            }
         error = row.get("error")
         if isinstance(error, dict):
             if int(error.get("type", 0) or 0) == 101:
@@ -127,8 +154,14 @@ def _v2_data(raw: Any, what: str) -> List[Dict[str, Any]]:
 
 
 def probe_bridge(base_url: str, application_key: str) -> Dict[str, Any]:
-    bridge_rows = _v2_data(_request_json(base_url, "/clip/v2/resource/bridge", application_key=application_key), "bridge")
-    devices = _v2_data(_request_json(base_url, "/clip/v2/resource/device", application_key=application_key), "device")
+    bridge_rows = _v2_data(
+        _request_json(base_url, "/clip/v2/resource/bridge", application_key=application_key),
+        "bridge",
+    )
+    devices = _v2_data(
+        _request_json(base_url, "/clip/v2/resource/device", application_key=application_key),
+        "device",
+    )
     lights = list_lights(base_url, application_key)
     bridge = bridge_rows[0] if bridge_rows else {}
     metadata = bridge.get("metadata") if isinstance(bridge.get("metadata"), dict) else {}
@@ -145,7 +178,10 @@ def probe_bridge(base_url: str, application_key: str) -> Dict[str, Any]:
 
 
 def list_lights(base_url: str, application_key: str) -> List[Dict[str, Any]]:
-    rows = _v2_data(_request_json(base_url, "/clip/v2/resource/light", application_key=application_key), "lights")
+    rows = _v2_data(
+        _request_json(base_url, "/clip/v2/resource/light", application_key=application_key),
+        "lights",
+    )
     result = []
     for light in rows:
         metadata = light.get("metadata") if isinstance(light.get("metadata"), dict) else {}
@@ -177,6 +213,7 @@ def _clean_rgb(value: Any) -> tuple[int, int, int]:
 
 
 def rgb_to_xy(rgb: Any) -> Dict[str, float]:
+    """Convert sRGB to CIE 1931 xy, suitable for Hue API color payloads."""
     r8, g8, b8 = _clean_rgb(rgb)
     channels = []
     for c in (r8 / 255.0, g8 / 255.0, b8 / 255.0):
@@ -203,12 +240,14 @@ def build_light_payload(mode: Dict[str, Any], light: Dict[str, Any]) -> Dict[str
     payload["dynamics"] = {"duration": transition_ms}
     if not on:
         return payload
+
     if light.get("supports_dimming", True):
         try:
             bri = max(1, min(255, int(mode.get("brightness", 128))))
         except (TypeError, ValueError):
             bri = 128
         payload["dimming"] = {"brightness": round(bri / 255.0 * 100.0, 2)}
+
     if light.get("supports_color", False):
         colors = mode.get("colors") if isinstance(mode.get("colors"), list) else []
         color1 = colors[0] if colors else [138, 43, 226]
@@ -223,6 +262,12 @@ def apply_light_mode(bridge: Dict[str, Any], light: Dict[str, Any], mode: Dict[s
     if not host or not key or not rid:
         raise HueError("Hue Bridge/light configuration is incomplete")
     payload = build_light_payload(mode, light)
-    raw = _request_json(host, f"/clip/v2/resource/light/{rid}", method="PUT", payload=payload, application_key=key)
+    raw = _request_json(
+        host,
+        f"/clip/v2/resource/light/{rid}",
+        method="PUT",
+        payload=payload,
+        application_key=key,
+    )
     _v2_data(raw, "light update")
     return raw if isinstance(raw, dict) else {"ok": True}

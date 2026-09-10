@@ -180,6 +180,9 @@ class AutodartsGameBridge:
                 "match_active": not state["finished"],
             })
 
+        # First frame synchronises base state. A current-target event is safe to
+        # emit because it describes what the player should be aiming at now; it
+        # does not invent a historical bust or checkout.
         if previous is None:
             target_mode = "idle" if state["finished"] else "active"
             self._on_base_mode(target_mode, "Autodarts match state synchronised", False)
@@ -208,6 +211,9 @@ class AutodartsGameBridge:
             if state["current_player_is_bot"]:
                 self._record_and_dispatch(self._event("bot_turn", state))
 
+        # Target events fire when the target itself changes, and again at a new
+        # player's/turn's start. That makes training-mode lighting useful even
+        # when two players happen to be on the same number.
         target_changed = bool(state["current_target"] and state["current_target"] != previous.get("current_target"))
         if state["current_target"] and not state["finished"] and (target_changed or turn_changed or player_changed):
             self._record_and_dispatch(self._target_event(state))

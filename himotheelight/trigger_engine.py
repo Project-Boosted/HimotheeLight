@@ -189,15 +189,25 @@ class TriggerEngine:
         queued = self.lighting.set_active_trigger_completion(self._complete_deferred_takeout, "Takeout -> Yellow")
         if not queued:
             self._clear_takeout_pending()
-        return queued
+            return False
+        logger.info("Takeout waiting deferred until score effect '%s' finishes", active.get("name"))
+        return True
 
     def handle_autodarts_state(self, event: Dict[str, Any]) -> None:
+        """Consume normalized Board Manager state.
+
+        v0.7.3 preserves dart-3 scoring effects before the fixed takeout flow:
+        the accepted dart/visit trigger plays for its configured duration first,
+        then yellow waits for removal, then red acknowledges removal before the
+        current match/base colour is restored.
+        """
         event_name = str(event.get("event") or "")
         throws = [x for x in (event.get("throws") or []) if isinstance(x, dict)]
         num_throws = _safe_int(event.get("num_throws"), len(throws))
         previous_num = _safe_int(event.get("previous_num_throws"), 0)
         settings = self.store.get().get("autodarts", {})
         flow_enabled = bool(settings.get("takeout_flow_enabled", True))
+        # Takeout is deliberately fixed at exactly three darts.
         after_darts = 3
         finish_flash_ms = max(100, min(5000, _safe_int(settings.get("takeout_finish_flash_ms"), 500)))
 
@@ -246,6 +256,7 @@ class TriggerEngine:
             )
             if synthetic_takeout or actual_takeout:
                 self._takeout_started_for_visit = True
+
             reset_after = num_throws == 0 and previous_num > 0
 
         if total is not None:
@@ -256,14 +267,19 @@ class TriggerEngine:
                 "source": "autodarts",
             })
 
+        # Automatic Takeout is a fixed visual state, not a user-selected effect:
+        # third dart -> solid yellow and hold it until the darts are removed.
+        # The target devices reuse the Takeout Started rule's device selection
+        # when one exists; otherwise every enabled WLED participates.
         takeout_device_ids: List[str] = []
         cfg = self.store.get()
         takeout_rule = next((
             t for t in cfg.get("triggers", [])
-            if isinstance(t, dict) and t.get("enabled", False)
+            if isinstance(t, dict)
+            and t.get("enabled", False)
             and str(t.get("trigger_type") or "") == "board_event"
             and str(t.get("value") or "").strip().lower() == "takeout started"
-         ), None)
+        ), None)
         if takeout_rule and isinstance(takeout_rule.get("device_ids"), list):
             takeout_device_ids = [str(x) for x in takeout_rule.get("device_ids", [])]
 

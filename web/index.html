@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HimotheeLight</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">HL</div>
+      <div>
+        <h1>HimotheeLight</h1>
+        <p>WLED + Hue + Autodarts</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-page="dashboard"><span>◈</span>Dashboard</button>
+      <button class="nav-item" data-page="devices"><span>◉</span>WLED Devices</button>
+      <button class="nav-item" data-page="hue"><span>◌</span>Philips Hue</button>
+      <button class="nav-item" data-page="modes"><span>✦</span>Idle & Active</button>
+      <button class="nav-item" data-page="autodarts"><span>🎯</span>Autodarts</button>
+      <button class="nav-item" data-page="triggers"><span>✹</span>Triggers</button>
+      <button class="nav-item" data-page="scenes"><span>◇</span>Scenes & Groups</button>
+      <button class="nav-item" data-page="profiles"><span>▣</span>Profiles</button>
+      <button class="nav-item" data-page="logs"><span>≡</span>Logs</button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-row"><span id="backendDot" class="dot online"></span><span id="backendText">Backend online</span></div>
+      <div class="status-row compact-status"><span id="sideAutodartsDot" class="dot offline"></span><span id="sideAutodartsText">Autodarts offline</span></div>
+      <div class="version" id="versionLabel">v0.8.0 • Hue Integration</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">DIGITAL OCHE LIGHTING</div>
+        <h2 id="pageTitle">Dashboard</h2>
+      </div>
+      <div class="top-actions">
+        <button id="applyIdleAll" class="btn secondary">Idle All</button>
+        <button id="applyActiveAll" class="btn primary">Active All</button>
+      </div>
+    </header>
+
+    <div id="toastHost" class="toast-host"></div>
+
+    <section id="page-dashboard" class="page active">
+      <div class="hero-card">
+        <div>
+          <div class="eyebrow">HIMOTHEELIGHT v0.8</div>
+          <h3>WLED + Philips Hue Autodarts Lighting</h3>
+          <p>Run WLED controllers and Philips Hue lights together across Idle/Active modes, triggers, takeout flow, groups, scenes and profile sharing.</p>
+        </div>
+        <div class="mode-pill"><span id="heroModeDot" class="dot online"></span><span>Lighting:</span><strong id="currentMode">IDLE</strong></div>
+      </div>
+
+      <div class="stat-grid">
+        <article class="stat-card"><span class="stat-label">Lighting endpoints</span><strong id="deviceCount">0</strong><small>WLED + Hue</small></article>
+        <article class="stat-card"><span class="stat-label">Trigger effect</span><strong id="dashTriggerState">NONE</strong><small id="dashTriggerDetail">base lighting</small></article>
+        <article class="stat-card"><span class="stat-label">Autodarts</span><strong id="dashAutodartsState" class="muted-strong">OFFLINE</strong><small id="dashAutodartsDetail">Board Manager</small></article>
+        <article class="stat-card"><span class="stat-label">Last dart</span><strong id="dashLastDart">—</strong><small id="dashLastDartScore">waiting</small></article>
+      </div>
+
+      <div class="panel-grid two">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">QUICK CONTROL</span><h3>Base lighting states</h3></div></div>
+          <div class="quick-actions">
+            <button id="dashIdle" class="state-button idle"><span>☾</span><div><strong>Apply Idle</strong><small>Use your out-of-game lighting</small></div></button>
+            <button id="dashActive" class="state-button active-state"><span>⚡</span><div><strong>Apply Active</strong><small>Use your in-game lighting</small></div></button>
+          </div>
+          <div id="modeReason" class="metadata-summary align-left">Current state has not been applied in this session yet.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">AUTODARTS LIVE</span><h3>Board Manager</h3></div><button class="btn ghost" data-go="autodarts">Open Autodarts</button></div>
+          <div class="live-state-grid">
+            <div><span>Event stream</span><strong id="dashStream">Offline</strong></div>
+            <div><span>Detection</span><strong id="dashRunning">Stopped</strong></div>
+            <div><span>Board status</span><strong id="dashBoardStatus">Unknown</strong></div>
+            <div><span>Last event</span><strong id="dashLastEvent">—</strong></div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">LIGHTING</span><h3>Endpoint overview</h3></div><button class="btn ghost" data-go="hue">Manage Hue</button></div>
+        <div id="dashboardDevices" class="device-overview empty-state">No lighting endpoints configured yet.</div>
+      </article>
+    </section>
+
+    <section id="page-devices" class="page">
+      <div class="panel-grid device-layout">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">ADD WLED</span><h3>New controller</h3></div></div>
+          <form id="addDeviceForm" class="form-stack">
+            <label>Device name<input id="deviceName" type="text" value="Dartboard LEDs" maxlength="80" required /></label>
+            <label>IP address / hostname<input id="deviceHost" type="text" placeholder="192.168.1.50" required /></label>
+            <p class="help">HimotheeLight validates the device against WLED's JSON API before saving it.</p>
+            <button class="btn primary wide" type="submit">Add & Connect</button>
+          </form>
+        </article>
+
+        <article class="panel device-list-panel">
+          <div class="panel-heading"><div><span class="eyebrow">CONFIGURED</span><h3>Your WLED devices</h3></div><button id="refreshAll" class="btn ghost">Refresh</button></div>
+          <div id="deviceList" class="device-list empty-state">No devices configured.</div>
+        </article>
+      </div>
+    </section>
+
+    <section id="page-hue" class="page">
+      <div class="panel-grid two">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">PHILIPS HUE</span><h3>Pair a Hue Bridge</h3></div></div>
+          <p class="help block-help">HimotheeLight connects directly to the Hue Bridge on your local network using the Hue API. Press the physical link button on the bridge immediately before pairing.</p>
+          <form id="huePairForm" class="form-stack">
+            <label>Bridge name<input id="hueBridgeName" type="text" value="Philips Hue Bridge" maxlength="80" /></label>
+            <label>Bridge IP / hostname<input id="hueBridgeHost" type="text" placeholder="192.168.1.20" required /></label>
+            <div class="button-row"><button id="hueDiscover" class="btn secondary" type="button">Discover Bridges</button><button class="btn primary" type="submit">Pair After Button Press</button></div>
+          </form>
+          <div id="hueDiscoveryList" class="device-list empty-state">Use Discover Bridges or enter the bridge IP manually.</div>
+          <div class="metadata-summary align-left">Pairing creates a local Hue application key. HimotheeLight stores it on this PC and never includes it in exported lighting profiles.</div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">HUE BRIDGES</span><h3>Connected bridges</h3></div></div>
+          <div id="hueBridgeList" class="device-list empty-state">No Hue Bridges paired.</div>
+        </article>
+      </div>
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">HUE LIGHTS</span><h3>Lights available to Autodarts</h3></div></div>
+        <p class="help block-help">Colour Hue lights follow trigger/scene Colour 1, brightness and transition. White/dimming-only lights follow on/off and brightness. Hue lights can be selected in Triggers, Device Groups and Scenes alongside WLED.</p>
+        <div id="hueLightList" class="device-list empty-state">Pair a Hue Bridge to discover lights.</div>
+      </article>
+    </section>
+
+    <section id="page-modes" class="page">
+      <article class="panel mode-panel">
+        <div class="panel-heading wrap">
+          <div><span class="eyebrow">BASE LIGHTING</span><h3>Idle & Active mode editor</h3></div>
+          <div class="inline-controls">
+            <label class="compact-label">Device<select id="modeDeviceSelect"></select></label>
+            <button id="reloadMetadata" class="btn ghost">Reload WLED</button>
+          </div>
+        </div>
+
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="idle">☾ Idle Mode</button>
+          <button class="mode-tab" data-mode="active">⚡ Active Mode</button>
+        </div>
+
+        <div id="noModeDevice" class="empty-state spacious">Add a WLED device or pair a Hue Bridge first, then configure Idle and Active states.</div>
+        <div id="modeEditor" class="mode-editor hidden">
+          <div class="mode-summary">
+            <div><span class="eyebrow" id="modeEyebrow">IDLE MODE</span><h3 id="modeHeading">Out-of-game lighting</h3><p id="modeDescription">Used when Autodarts detection is stopped.</p></div>
+            <label class="switch-row"><span>Lights on</span><input id="modeOn" type="checkbox" checked /><span class="switch"></span></label>
+          </div>
+
+          <div id="modeSourceChoice" class="source-choice">
+            <label class="radio-card"><input type="radio" name="source" value="direct" checked /><span><strong>Direct effect</strong><small>Effect + palette + colours + speed</small></span></label>
+            <label class="radio-card"><input type="radio" name="source" value="preset" /><span><strong>WLED preset</strong><small>Recall an existing preset by name</small></span></label>
+          </div>
+
+          <div id="hueModeNote" class="metadata-summary align-left hidden">Philips Hue uses On/Off, Brightness, Transition and Colour 1. WLED effect/palette/preset controls are ignored for Hue.</div>
+          <div id="directFields" class="field-grid">
+            <label class="wled-only">Effect<select id="effectSelect"></select></label>
+            <label class="wled-only">Palette<select id="paletteSelect"></select></label>
+            <label class="wled-only">Segment<select id="segmentSelect"><option value="">Main segment</option></select></label>
+            <label>Transition<input id="transitionMs" type="number" min="0" max="65000" step="100" /><span class="unit">ms</span></label>
+
+            <label class="range-field"><span>Brightness <output id="brightnessOut"></output></span><input id="brightness" type="range" min="1" max="255" /></label>
+            <label class="range-field wled-only"><span>Speed <output id="speedOut"></output></span><input id="speed" type="range" min="0" max="255" /></label>
+            <label class="range-field wled-only"><span>Intensity <output id="intensityOut"></output></span><input id="intensity" type="range" min="0" max="255" /></label>
+
+            <div class="color-field"><span>Colour 1</span><input id="color1" type="color" /></div>
+            <div class="color-field wled-only"><span>Colour 2</span><input id="color2" type="color" /></div>
+            <div class="color-field wled-only"><span>Colour 3</span><input id="color3" type="color" /></div>
+          </div>
+
+          <div id="presetFields" class="field-grid hidden">
+            <label>Preset<select id="presetSelect"></select></label>
+            <label class="range-field"><span>Brightness override <output id="presetBrightnessOut"></output></span><input id="presetBrightness" type="range" min="1" max="255" /></label>
+            <label>Transition<input id="presetTransitionMs" type="number" min="0" max="65000" step="100" /><span class="unit">ms</span></label>
+          </div>
+
+          <div class="editor-actions">
+            <button id="saveMode" class="btn secondary">Save</button>
+            <button id="saveApplyMode" class="btn primary">Save & Apply Now</button>
+          </div>
+          <div id="metadataSummary" class="metadata-summary"></div>
+        </div>
+      </article>
+    </section>
+
+    <section id="page-autodarts" class="page">
+      <div class="panel-grid autodarts-layout">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">CONNECTION</span><h3>Board Manager</h3></div><span id="autodartsConnectionBadge" class="connection-badge offline">OFFLINE</span></div>
+          <form id="autodartsSettingsForm" class="form-stack">
+            <label>Host<input id="autodartsHost" type="text" value="127.0.0.1" required /></label>
+            <label>Port<input id="autodartsPort" type="number" value="3180" min="1" max="65535" required /></label>
+            <label>Reconnect delay<input id="autodartsReconnect" type="number" value="2" min="0.5" max="30" step="0.5" /><span class="unit">seconds</span></label>
+            <label>Game Bridge timeout<input id="autodartsBridgeTimeout" type="number" value="10" min="5" max="60" step="1" /><span class="unit">seconds</span></label>
+            <label class="switch-row setting-switch"><span><strong>Enable Autodarts</strong><small>Allow the Board Manager connection</small></span><input id="autodartsEnabled" type="checkbox" checked /><span class="switch"></span></label>
+            <label class="switch-row setting-switch"><span><strong>Connect on startup</strong><small>Reconnect whenever HimotheeLight starts</small></span><input id="autodartsAutoConnect" type="checkbox" checked /><span class="switch"></span></label>
+            <label class="switch-row setting-switch"><span><strong>Automatic lighting</strong><small>Match page → Active, match finish/leave → Idle; Board Manager is fallback</small></span><input id="autodartsAutoLighting" type="checkbox" checked /><span class="switch"></span></label>
+            <label class="switch-row setting-switch"><span><strong>Idle on disconnect</strong><small>Failsafe if Board Manager closes</small></span><input id="autodartsIdleDisconnect" type="checkbox" checked /><span class="switch"></span></label>
+            <label class="switch-row setting-switch"><span><strong>Automatic takeout flow</strong><small>Dart 3 score effect → yellow until removal → red → match colour</small></span><input id="autodartsTakeoutFlow" type="checkbox" checked /><span class="switch"></span></label>
+            <label>Takeout starts after<input id="autodartsTakeoutAfterDarts" type="number" value="3" min="3" max="3" step="1" disabled /><span class="unit">3 darts • fixed</span></label>
+            <label>Takeout finished red flash<input id="autodartsTakeoutFlashMs" type="number" value="500" min="100" max="5000" step="50" /><span class="unit">milliseconds</span></label>
+            <label class="switch-row setting-switch"><span><strong>Idle after inactivity</strong><small>Latch Idle when no new dart arrives during an active game</small></span><input id="autodartsInactivityIdle" type="checkbox" checked /><span class="switch"></span></label>
+            <label>No-dart timeout<input id="autodartsInactivitySeconds" type="number" value="60" min="10" max="3600" step="5" /><span class="unit">seconds • stays Idle until a new game</span></label>
+            <div class="button-row">
+              <button class="btn secondary" id="autodartsTest" type="button">Test HTTP</button>
+              <button class="btn primary" type="submit">Save & Connect</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel live-panel">
+          <div class="panel-heading"><div><span class="eyebrow">LIVE STATE</span><h3>Autodarts activity</h3></div><div class="button-row"><button id="autodartsConnect" class="btn ghost">Connect</button><button id="autodartsDisconnect" class="btn ghost">Disconnect</button></div></div>
+          <div class="autodarts-status-grid">
+            <div class="status-tile"><span>Event stream</span><strong id="adStreamState">OFFLINE</strong><small id="adStreamDetail">Not connected</small></div>
+            <div class="status-tile"><span>Board</span><strong id="adBoardConnected">UNKNOWN</strong><small>Board Manager reports</small></div>
+            <div class="status-tile"><span>Detection</span><strong id="adRunning">STOPPED</strong><small id="adStatus">Unknown</small></div>
+            <div class="status-tile accent"><span>Lighting base</span><strong id="adLightingMode">IDLE</strong><small id="adLightingReason">Waiting for state</small></div>
+          </div>
+
+          <div class="dart-live-card">
+            <div class="dart-score"><span>LAST DART</span><strong id="adLastDart">—</strong><small id="adLastScore">No dart received yet</small></div>
+            <div class="visit-live"><span>DARTS CURRENTLY KNOWN</span><div id="adThrows" class="dart-chips"><i>Waiting for throws</i></div></div>
+          </div>
+
+          <div class="state-details">
+            <div><span>Last event</span><strong id="adLastEvent">—</strong></div>
+            <div><span>Throws in board</span><strong id="adNumThrows">0</strong></div>
+            <div><span>Last message</span><strong id="adLastMessage">—</strong></div>
+            <div><span>Reconnects</span><strong id="adReconnects">0</strong></div>
+            <div><span>Inactivity</span><strong id="adInactivityState">WAITING</strong></div>
+            <div><span>Idle timer</span><strong id="adInactivityRemaining">—</strong></div>
+          </div>
+
+          <div id="adError" class="error-banner hidden"></div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">GAME BRIDGE</span><h3>Autodarts match state</h3></div><span id="gameBridgeBadge" class="connection-badge offline">NOT INSTALLED</span></div>
+        <div class="autodarts-status-grid">
+          <div class="status-tile"><span>Bridge</span><strong id="bridgeState">OFFLINE</strong><small id="bridgeHeartbeat">Waiting for browser extension</small></div>
+          <div class="status-tile"><span>Page</span><strong id="bridgeRoute">—</strong><small id="bridgeMatchId">No match detected</small></div>
+          <div class="status-tile"><span>Current player</span><strong id="bridgePlayer">—</strong><small id="bridgeVariant">—</small></div>
+          <div class="status-tile"><span>Current target</span><strong id="bridgeTarget">—</strong><small>ATC / RTW / Shanghai / Bob's 27</small></div>
+          <div class="status-tile accent"><span>Game state</span><strong id="bridgeMatchState">IDLE</strong><small id="bridgeLastEvent">No game event yet</small></div>
+        </div>
+        <p class="help block-help"><strong>One-time browser setup:</strong> open <code>chrome://extensions</code> or <code>edge://extensions</code>, enable Developer mode, choose <strong>Load unpacked</strong>, and select the <code>browser-extension</code> folder included with HimotheeLight v0.8.0. Then refresh Autodarts. The bridge uses the match state already delivered to your browser; it does not ask for your Autodarts login or token.</p>
+        <div class="simulation-buttons">
+          <button class="btn ghost" data-game-simulate="bust">Test Bust</button>
+          <button class="btn secondary" data-game-simulate="gameshot">Test Game Shot</button>
+          <button class="btn primary" data-game-simulate="matchshot">Test Match Shot</button>
+          <button class="btn ghost" data-game-simulate="turn_start">Test Turn Start</button>
+          <button class="btn ghost" data-game-simulate="target_bull">Test Target Bull</button>
+        </div>
+        <div id="gameBridgeEventList" class="event-list"><div class="empty-state">No game events received yet.</div></div>
+      </article>
+
+      <div class="panel-grid two">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">LIGHTING TEST</span><h3>Simulate Autodarts</h3></div></div>
+          <p class="help block-help">These buttons pass through the same base-state engine as real Board Manager events. They are useful for confirming your Idle/Active WLED configuration.</p>
+          <div class="simulation-buttons">
+            <button class="btn secondary" data-simulate="stopped">Simulate Stopped → Idle</button>
+            <button class="btn primary" data-simulate="started">Simulate Started → Active</button>
+            <button class="btn ghost" data-simulate="throw">Simulate T20</button>
+            <button class="btn ghost" data-simulate="three_darts">Simulate 3 Darts → Takeout</button>
+            <button class="btn ghost" data-simulate="takeout_started">Simulate Takeout Started</button>
+            <button class="btn ghost" data-simulate="takeout_finished">Simulate Takeout Finished</button>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">AUTOMATIC GAME LOGIC</span><h3>What changes the base state?</h3></div></div>
+          <div class="checklist">
+            <div><span>✓</span>Autodarts <strong>match page</strong> → Active lighting</div>
+            <div><span>✓</span><strong>Match Shot / leaving match</strong> → Idle lighting after celebration</div>
+            <div><span>✓</span>Board Manager Started/Stopped remains the <strong>fallback</strong> when the bridge is unavailable</div>
+            <div><span>✓</span>Starting mid-session synchronises from <strong>running</strong></div>
+            <div><span>✓</span>Throw events update the live dashboard</div>
+            <div><span>✓</span>Automatic reconnect after a dropped local connection</div>
+            <div><span>✓</span>Trigger engine listens to <strong>darts, visits, combinations, targets, Bust, Game Shot, Match Shot and player turns</strong></div>
+            <div><span>✓</span><strong>Third dart</strong> → solid yellow until the player removes the darts</div>
+            <div><span>✓</span><strong>Darts removed / Takeout Finished</strong> → solid red for 500 ms → current match colour</div>
+            <div><span>✓</span><strong>60 seconds without a dart</strong> → latched Idle until a new game becomes active</div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">EVENT FEED</span><h3>Recent Board Manager events</h3></div><button id="refreshAutodarts" class="btn ghost">Refresh</button></div>
+        <div id="autodartsEventList" class="event-list"><div class="empty-state">No Autodarts events received yet.</div></div>
+      </article>
+    </section>
+
+    <section id="page-triggers" class="page">
+      <div class="trigger-runtime panel">
+        <div>
+          <span class="eyebrow">LIVE OVERRIDE</span>
+          <h3 id="triggerRuntimeName">No trigger effect active</h3>
+          <p id="triggerRuntimeReason">HimotheeLight is showing the current Idle/Active base state.</p>
+        </div>
+        <div class="trigger-runtime-actions">
+          <div class="runtime-countdown"><span>REMAINING</span><strong id="triggerRuntimeRemaining">—</strong></div>
+          <button id="cancelTrigger" class="btn secondary">Stop Effect</button>
+        </div>
+      </div>
+
+      <div class="panel-grid trigger-layout">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">AUTODARTS TRIGGERS</span><h3>Effect rules</h3></div><button id="addTrigger" class="btn primary">+ Add</button></div>
+          <p class="help block-help">Starter rules are disabled after upgrade. Enable only the effects you want. Higher priority wins when rules overlap.</p>
+          <div id="triggerList" class="trigger-list"></div>
+        </article>
+
+        <article class="panel trigger-editor-panel">
+          <div id="noTrigger" class="empty-state spacious">Select a trigger to edit it.</div>
+          <div id="triggerEditor" class="hidden">
+            <div class="panel-heading wrap">
+              <div><span class="eyebrow">TRIGGER EDITOR</span><h3 id="triggerEditorTitle">Trigger</h3></div>
+              <label class="switch-row"><span>Enabled</span><input id="triggerEnabled" type="checkbox" /><span class="switch"></span></label>
+            </div>
+
+            <div class="field-grid trigger-condition-grid">
+              <label>Name<input id="triggerName" type="text" maxlength="80" /></label>
+              <label>Trigger type<select id="triggerType"><option value="dart">Individual dart</option><option value="visit_exact">Exact visit score</option><option value="visit_range">Visit score range</option><option value="combination">Dart combination</option><option value="target">Current game target</option><option value="game_event">Game event</option><option value="player_turn">Player turn</option><option value="board_event">Board Manager event</option></select></label>
+              <label id="triggerValueWrap"><span id="triggerValueLabel">Dart / score</span><input id="triggerValue" type="text" value="T20" /><select id="triggerGameEvent" class="hidden"><option value="bust">Bust</option><option value="gameshot">Game Shot (leg win)</option><option value="matchshot">Match Shot</option><option value="turn_start">Turn Start</option><option value="game_start">Game Start / new leg</option><option value="match_start">Match Start</option><option value="bot_turn">Bot Turn</option></select><select id="triggerBoardEvent" class="hidden"><option value="Starting">Starting</option><option value="Started">Started</option><option value="Stopping">Stopping</option><option value="Stopped">Stopped</option><option value="Throw detected">Throw detected</option><option value="Takeout started">Takeout started</option><option value="Takeout finished">Takeout finished</option><option value="Manual reset">Manual reset</option><option value="Calibration started">Calibration started</option><option value="Calibration finished">Calibration finished</option><option value="Calibration failed">Calibration failed</option></select></label>
+              <label id="triggerMinWrap" class="hidden">Minimum score<input id="triggerMinimum" type="number" min="0" max="180" /></label>
+              <label id="triggerMaxWrap" class="hidden">Maximum score<input id="triggerMaximum" type="number" min="0" max="180" /></label>
+              <label>Effect length<input id="triggerDuration" type="number" min="100" max="60000" step="50" /><span class="unit">milliseconds</span></label>
+              <label>Priority<input id="triggerPriority" type="number" min="0" max="100" /></label>
+              <label>Lighting scene<select id="triggerSceneSelect"><option value="">Direct trigger effect</option></select><span class="unit">A scene overrides the direct WLED effect below</span></label>
+              <label>Target WLED<select id="triggerDevices" multiple size="3"></select><span class="unit">No selection = all enabled devices</span></label>
+              <label>Reference WLED<select id="triggerReferenceDevice"></select><span class="unit">Loads effect / preset names</span></label>
+            </div>
+
+            <div class="source-choice trigger-source-choice">
+              <label class="radio-card"><input type="radio" name="triggerSource" value="direct" checked /><span><strong>Direct effect</strong><small>WLED effect, palette, speed and colours</small></span></label>
+              <label class="radio-card"><input type="radio" name="triggerSource" value="preset" /><span><strong>WLED preset</strong><small>Recall one of your existing WLED presets</small></span></label>
+            </div>
+
+            <div id="triggerDirectFields" class="field-grid">
+              <label>Effect<select id="triggerEffectSelect"></select></label>
+              <label>Palette<select id="triggerPaletteSelect"></select></label>
+              <label>Segment<select id="triggerSegmentSelect"><option value="">Main segment</option></select></label>
+              <label>Transition<input id="triggerTransitionMs" type="number" min="0" max="65000" step="100" /><span class="unit">ms</span></label>
+              <label class="range-field"><span>Brightness <output id="triggerBrightnessOut"></output></span><input id="triggerBrightness" type="range" min="1" max="255" /></label>
+              <label class="range-field"><span>Speed <output id="triggerSpeedOut"></output></span><input id="triggerSpeed" type="range" min="0" max="255" /></label>
+              <label class="range-field"><span>Intensity <output id="triggerIntensityOut"></output></span><input id="triggerIntensity" type="range" min="0" max="255" /></label>
+              <div class="color-field"><span>Colour 1</span><input id="triggerColor1" type="color" /></div>
+              <div class="color-field"><span>Colour 2</span><input id="triggerColor2" type="color" /></div>
+              <div class="color-field"><span>Colour 3</span><input id="triggerColor3" type="color" /></div>
+            </div>
+
+            <div id="triggerPresetFields" class="field-grid hidden">
+              <label>Preset<select id="triggerPresetSelect"></select></label>
+              <label class="range-field"><span>Brightness override <output id="triggerPresetBrightnessOut"></output></span><input id="triggerPresetBrightness" type="range" min="1" max="255" /></label>
+              <label>Transition<input id="triggerPresetTransitionMs" type="number" min="0" max="65000" step="100" /><span class="unit">ms</span></label>
+            </div>
+
+            <div class="editor-actions trigger-editor-actions">
+              <button id="deleteTrigger" class="btn danger">Delete</button>
+              <span class="editor-spacer"></span>
+              <button id="testTrigger" class="btn ghost">Test Effect</button>
+              <button id="saveTrigger" class="btn primary">Save Trigger</button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">RECENT TRIGGERS</span><h3>Trigger history</h3></div><button id="refreshTriggers" class="btn ghost">Refresh</button></div>
+        <div id="triggerHistory" class="event-list"><div class="empty-state">No trigger effects fired yet.</div></div>
+      </article>
+    </section>
+
+
+    <section id="page-scenes" class="page">
+      <div class="panel-grid two">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">DEVICE GROUPS</span><h3>Reusable WLED groups</h3></div></div>
+          <p class="help block-help">Create groups such as Room, Ceiling or Streaming Wall. Scene actions can target a whole group at once.</p>
+          <form id="createGroupForm" class="form-stack">
+            <label>Group name<input id="groupName" type="text" maxlength="60" placeholder="Room" required /></label>
+            <label>Lighting endpoints<select id="groupDevices" multiple size="5"></select></label>
+            <button class="btn secondary wide" type="submit">Create Group</button>
+          </form>
+          <div id="groupList" class="device-list empty-state">No groups.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">LIGHTING SCENES</span><h3>Scene library</h3></div></div>
+          <form id="createSceneForm" class="form-stack">
+            <label>Scene name<input id="sceneName" type="text" maxlength="60" placeholder="Maximum Celebration" required /></label>
+            <button class="btn primary wide" type="submit">Create Scene</button>
+          </form>
+          <label>Selected scene<select id="sceneSelect"></select></label>
+          <div class="field-grid">
+            <label>Repeat count<input id="sceneRepeatCount" type="number" min="0" max="20" value="1" /><span class="unit">1–20 repeats • 0 = loop until interrupted</span></label>
+            <div class="editor-actions"><button id="saveSceneTiming" class="btn secondary">Save Scene Timing</button></div>
+          </div>
+          <div id="sceneTimingSummary" class="metadata-summary align-left">Simple parallel scene.</div>
+          <div class="editor-actions">
+            <button id="testScene" class="btn primary">Test Scene</button>
+            <button id="deleteScene" class="btn danger">Delete Scene</button>
+          </div>
+          <div id="sceneActions" class="device-list empty-state">No scene selected.</div>
+        </article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">SCENE ACTION</span><h3>Add WLED action</h3></div></div>
+        <p class="help block-help">Actions in the same step run together. Higher step numbers run afterwards. Hue targets use on/off, brightness, Colour 1 and transition; WLED targets additionally use effects, palettes, speed, intensity and presets. Delay is measured from the start of that step, and Hold controls how long the step stays active before HimotheeLight advances. If two actions in the same moment target the same device, the later action wins.</p>
+        <div class="field-grid">
+          <label>Action name<input id="sceneActionName" type="text" value="Scene Action" maxlength="60" /></label>
+          <label>Step<input id="sceneActionStep" type="number" min="1" max="50" value="1" /><span class="unit">Same step = parallel</span></label>
+          <label>Delay<input id="sceneActionDelay" type="number" min="0" max="60000" step="50" value="0" /><span class="unit">milliseconds after step starts</span></label>
+          <label>Hold<input id="sceneActionHold" type="number" min="0" max="60000" step="50" value="0" /><span class="unit">milliseconds before next step</span></label>
+          <label>Target type<select id="sceneTargetType"><option value="all">All enabled lights</option><option value="device">Single lighting endpoint</option><option value="group">Device group</option></select></label>
+          <label>Target<select id="sceneTargetId"></select></label>
+          <label>Reference WLED<select id="sceneReferenceDevice"></select><span class="unit">Loads effect / preset names</span></label>
+        </div>
+        <div class="source-choice">
+          <label class="radio-card"><input type="radio" name="sceneSource" value="direct" checked /><span><strong>Direct effect</strong><small>Effect, palette and colours</small></span></label>
+          <label class="radio-card"><input type="radio" name="sceneSource" value="preset" /><span><strong>WLED preset</strong><small>Recall a preset on each target</small></span></label>
+        </div>
+        <div class="field-grid">
+          <label>Effect<select id="sceneEffectSelect"></select></label>
+          <label>Palette<select id="scenePaletteSelect"></select></label>
+          <label>Preset<select id="scenePresetSelect"></select></label>
+          <label class="range-field"><span>Brightness <output id="sceneBrightnessOut">255</output></span><input id="sceneBrightness" type="range" min="1" max="255" value="255" /></label>
+          <label class="range-field"><span>Speed <output id="sceneSpeedOut">200</output></span><input id="sceneSpeed" type="range" min="0" max="255" value="200" /></label>
+          <label class="range-field"><span>Intensity <output id="sceneIntensityOut">220</output></span><input id="sceneIntensity" type="range" min="0" max="255" value="220" /></label>
+          <label>Transition<input id="sceneTransition" type="number" min="0" max="10000" step="50" value="0" /><span class="unit">milliseconds fade into this action</span></label>
+          <div class="color-field"><span>Colour 1</span><input id="sceneColor1" type="color" value="#ffffff" /></div>
+          <div class="color-field"><span>Colour 2</span><input id="sceneColor2" type="color" value="#8a2be2" /></div>
+          <div class="color-field"><span>Colour 3</span><input id="sceneColor3" type="color" value="#000000" /></div>
+        </div>
+        <div class="editor-actions"><span class="editor-spacer"></span><button id="addSceneAction" class="btn primary">Add Action To Scene</button></div>
+      </article>
+    </section>
+
+    <section id="page-profiles" class="page">
+      <div class="panel-grid two">
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">ACTIVE PROFILE</span><h3>Lighting setup</h3></div></div>
+          <p class="help block-help">A profile stores every WLED Idle/Active mode plus the full trigger list. Changes are saved automatically into the active profile.</p>
+          <div class="form-stack">
+            <label>Profile<select id="profileSelect"></select></label>
+            <div class="button-row"><button id="applyProfile" class="btn primary">Apply Selected Profile</button><button id="exportSelectedProfile" class="btn secondary">Export Selected</button></div>
+          </div>
+          <div id="profileActiveSummary" class="metadata-summary align-left">No profile loaded.</div>
+        </article>
+        <article class="panel">
+          <div class="panel-heading"><div><span class="eyebrow">NEW PROFILE</span><h3>Clone current setup</h3></div></div>
+          <p class="help block-help">Create a new profile from exactly what HimotheeLight is using now, then edit it independently.</p>
+          <form id="createProfileForm" class="form-stack">
+            <label>Profile name<input id="createProfileName" type="text" maxlength="60" placeholder="Tournament" required /></label>
+            <button class="btn secondary wide" type="submit">Create From Current Setup</button>
+          </form>
+        </article>
+      </div>
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">SHARE PROFILES</span><h3>Import & export</h3></div></div>
+        <p class="help block-help">Export creates a portable HimotheeLight profile JSON. It contains lighting modes, triggers and any scenes/groups used by the profile, but <strong>never exports WLED hosts or Hue Bridge credentials</strong>. When importing on another PC, map shared lighting slots to that person's existing WLED/Hue endpoints.</p>
+        <div class="panel-grid two compact-grid">
+          <div class="form-stack">
+            <label>Import profile file<input id="profileImportFile" type="file" accept="application/json,.json" /></label>
+            <button id="clearProfileImport" class="btn ghost wide" type="button">Clear Import</button>
+          </div>
+          <div id="profileImportSummary" class="metadata-summary align-left">Choose a HimotheeLight profile JSON file to preview it.</div>
+        </div>
+        <div id="profileImportPreview" class="hidden">
+          <div class="field-grid">
+            <label>Imported profile name<input id="profileImportName" type="text" maxlength="60" /></label>
+            <label class="switch-row setting-switch"><span><strong>Apply after import</strong><small>Switch to the imported profile immediately</small></span><input id="profileImportApply" type="checkbox" /><span class="switch"></span></label>
+          </div>
+          <div class="panel-heading sub-heading"><div><span class="eyebrow">DEVICE MAPPING</span><h3>Map shared lights to this PC</h3></div></div>
+          <div id="profileImportMappings" class="device-list"></div>
+          <div id="profileImportWarnings" class="metadata-summary align-left"></div>
+          <div class="editor-actions"><span class="editor-spacer"></span><button id="importProfileNow" class="btn primary">Import Profile</button></div>
+        </div>
+      </article>
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">SAVED PROFILES</span><h3>Your lighting profiles</h3></div></div>
+        <div id="profileList" class="device-list empty-state">No profiles.</div>
+      </article>
+    </section>
+
+    <section id="page-logs" class="page">
+      <article class="panel log-panel">
+        <div class="panel-heading"><div><span class="eyebrow">DIAGNOSTICS</span><h3>HimotheeLight log</h3></div><button id="refreshLogs" class="btn ghost">Refresh</button></div>
+        <div id="logList" class="log-list"></div>
+      </article>
+    </section>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

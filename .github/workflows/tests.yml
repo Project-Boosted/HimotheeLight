@@ -5,7 +5,8 @@ on:
   pull_request:
 
 jobs:
-  test-release-package:
+  test-source:
+    name: Checked-in source
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -16,7 +17,45 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Rebuild and verify v0.8.0 release
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compile Python
+        shell: pwsh
+        run: python -m compileall -q app.py himotheelight tests
+
+      - name: Run Python tests
+        shell: pwsh
+        run: python -m unittest discover -s tests -v
+
+      - name: Validate browser scripts
+        shell: pwsh
+        run: |
+          node --check web/app.js
+          node --check browser-extension/background.js
+          node --check browser-extension/content.js
+          node --check browser-extension/capture.js
+
+      - name: Verify source version
+        shell: pwsh
+        run: python -c "from himotheelight import __version__; assert __version__ == '0.8.0'; print('HimotheeLight', __version__)"
+
+  test-release-package:
+    name: Reproducible v0.8.0 package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Rebuild and SHA-256 verify v0.8.0 release
         shell: pwsh
         run: "& '.\\Build Release Package.ps1'"
 
@@ -31,13 +70,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Python tests
+      - name: Run release Python tests
         shell: pwsh
         run: |
           cd _release/HimotheeLight-v0.8.0
           python -m unittest discover -s tests -v
 
-      - name: Validate browser scripts
+      - name: Validate release browser scripts
         shell: pwsh
         run: |
           cd _release/HimotheeLight-v0.8.0

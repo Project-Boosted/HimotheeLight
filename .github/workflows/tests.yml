@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-release-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Expand tested release package
+        shell: pwsh
+        run: Expand-Archive -Path releases/HimotheeLight-v0.8.0.zip -DestinationPath _release -Force
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          cd _release/HimotheeLight-v0.8.0
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run Python tests
+        shell: pwsh
+        run: |
+          cd _release/HimotheeLight-v0.8.0
+          python -m unittest discover -s tests -v
+      - name: Validate browser scripts
+        shell: pwsh
+        run: |
+          cd _release/HimotheeLight-v0.8.0
+          node --check web/app.js
+          node --check browser-extension/background.js
+          node --check browser-extension/content.js
+          node --check browser-extension/capture.js

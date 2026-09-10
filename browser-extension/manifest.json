@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "HimotheeLight Autodarts Bridge",
+  "description": "Sends Autodarts match events to the local HimotheeLight lighting controller.",
+  "version": "0.8.0",
+  "permissions": [
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*",
+    "https://*.autodarts.com/*",
+    "https://*.autodarts.io/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.autodarts.com/*",
+        "https://*.autodarts.io/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

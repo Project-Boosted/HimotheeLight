@@ -135,6 +135,16 @@ v0.8.0 keeps:
 
 ## Repository quick start
 
-On Windows, clone or download the repository, then run **Setup HimotheeLight.bat** once followed by **Run HimotheeLight.bat**. The application stores local configuration under `%APPDATA%\\HimotheeLight`; local config, logs, Hue credentials and build output are excluded from Git by `.gitignore`.
+The exact tested public package is stored at **`releases/HimotheeLight-v0.8.0.zip`**.
 
-The repository includes the Python backend, browser dashboard, Autodarts browser bridge, Windows helper scripts, PyInstaller specification and the full automated test suite. GitHub Actions runs the tests and validates browser JavaScript on every push and pull request.
+On Windows:
+
+1. Clone or download this repository.
+2. Extract `releases/HimotheeLight-v0.8.0.zip`.
+3. Open the extracted `HimotheeLight-v0.8.0` folder.
+4. Run **Setup HimotheeLight.bat** once.
+5. Run **Run HimotheeLight.bat**.
+
+The release archive contains the complete Python backend, browser dashboard, Autodarts browser bridge, Windows helper scripts, PyInstaller specification and the full automated test suite. Local configuration is stored under `%APPDATA%\\HimotheeLight`; config, logs, Hue credentials and build output are excluded by `.gitignore`.
+
+GitHub Actions expands the exact release archive, runs the Python tests, and validates the browser JavaScript on every push and pull request.

@@ -10,24 +10,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Expand tested release package
+
+      - name: Rebuild and verify v0.8.0 release
+        shell: pwsh
+        run: .\Build\ Release\ Package.ps1
+
+      - name: Expand verified release package
         shell: pwsh
         run: Expand-Archive -Path releases/HimotheeLight-v0.8.0.zip -DestinationPath _release -Force
+
       - name: Install dependencies
         shell: pwsh
         run: |
           cd _release/HimotheeLight-v0.8.0
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Run Python tests
         shell: pwsh
         run: |
           cd _release/HimotheeLight-v0.8.0
           python -m unittest discover -s tests -v
+
       - name: Validate browser scripts
         shell: pwsh
         run: |

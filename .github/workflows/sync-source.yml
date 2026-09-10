@@ -1,0 +1,77 @@
+name: Sync Verified Release Source
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'releases/v0.8.0/**'
+      - 'Build Release Package.ps1'
+      - '.github/workflows/sync-source.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-source:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rebuild and verify v0.8.0 package
+        shell: pwsh
+        run: "& '.\\Build Release Package.ps1'"
+
+      - name: Extract verified source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Remove-Item -Recurse -Force '_source' -ErrorAction SilentlyContinue
+          Expand-Archive -Path 'releases/HimotheeLight-v0.8.0.zip' -DestinationPath '_source' -Force
+          $src = Join-Path $PWD '_source\HimotheeLight-v0.8.0'
+          if (-not (Test-Path $src)) { throw "Verified source folder not found: $src" }
+
+          foreach ($dir in @('himotheelight', 'web', 'tests', 'browser-extension')) {
+            Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
+            Copy-Item -Path (Join-Path $src $dir) -Destination $dir -Recurse -Force
+          }
+
+          foreach ($file in @(
+            'app.py',
+            'requirements.txt',
+            'HimotheeLight.spec',
+            'INSTALL AUTODARTS BRIDGE.txt',
+            'Setup HimotheeLight.bat',
+            'Run HimotheeLight.bat',
+            'Run HimotheeLight - Background.bat',
+            'Build Windows EXE.bat'
+          )) {
+            Copy-Item -Path (Join-Path $src $file) -Destination $file -Force
+          }
+
+      - name: Validate extracted source
+        shell: pwsh
+        run: |
+          python -m compileall -q app.py himotheelight tests
+          python -m unittest discover -s tests -v
+          node --check web/app.js
+          node --check browser-extension/background.js
+          node --check browser-extension/content.js
+          node --check browser-extension/capture.js
+          python -c "from himotheelight import __version__; assert __version__ == '0.8.0'; print('Verified source version', __version__)"
+
+      - name: Commit readable verified source
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- himotheelight web tests browser-extension app.py requirements.txt HimotheeLight.spec 'INSTALL AUTODARTS BRIDGE.txt' 'Setup HimotheeLight.bat' 'Run HimotheeLight.bat' 'Run HimotheeLight - Background.bat' 'Build Windows EXE.bat'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'Readable source already matches the verified v0.8.0 package.'
+            exit 0
+          }
+          git commit -m 'Sync browsable source from verified v0.8.0 release'
+          git push

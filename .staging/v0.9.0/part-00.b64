@@ -1,0 +1,36 @@
+# HimotheeLight Community Profiles
+
+This folder contains the catalogue used by **Profiles → Community Library**.
+
+A community entry consists of:
+
+1. one portable HimotheeLight profile bundle (`*.json`), produced by the normal profile export format; and
+2. one entry in `catalog.json` describing the profile.
+
+## Safety rules
+
+Community profiles must never contain WLED IP addresses/hostnames, Hue Bridge addresses, Hue application/client keys, Autodarts credentials, logs or other machine-specific/private data.
+
+The application validates every bundle again before import. Endpoint slots must be mapped to compatible local WLED/Hue devices before a targeted profile can be installed.
+
+Use simple file names such as `my-profile.json`. Catalogue file names cannot contain directories or path traversal.
+
+## Recommended catalogue fields
+
+- `id` — lowercase stable identifier such as `digital-oche-purple`
+- `name` — display name
+- `creator` — author/community name
+- `description` — short explanation of the lighting style
+- `category` — e.g. Tournament, Celebration, Ambient
+- `tags` — short searchable descriptors
+- `file` — JSON bundle file in this folder
+- `min_app_version` — oldest compatible HimotheeLight version
+- `profile_version` — profile pack version
+- `featured` — whether it should be highlighted
+- `updated_at` — ISO-style date
+
+## Submitting a profile
+
+Export and test your profile in HimotheeLight first. Remove any unnecessary device-specific dependencies when the pack is intended to work on everyone's setup. Add the JSON file and catalogue entry in a pull request, describe the intended look/use case, and confirm it imports through HimotheeLight's preview without warnings that indicate missing required mappings.
+
+Profiles using WLED effect/palette/preset numbers can look different on controllers with different WLED versions or custom preset layouts. Prefer portable colours/transitions where practical, and document any WLED-specific assumptions.

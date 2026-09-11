@@ -1,0 +1,60 @@
+{
+  "format": "HimotheeLightCommunityProfiles",
+  "format_version": 1,
+  "updated_at": "2026-09-10",
+  "profiles": [
+    {
+      "id": "digital-oche-purple",
+      "name": "Digital Oche Purple",
+      "creator": "HimotheeLight",
+      "description": "Purple/white darts-room trigger pack with a clean three-step 180 celebration. Keeps your existing Idle/Active base lighting and targets all enabled WLED/Hue endpoints.",
+      "category": "Featured",
+      "tags": [
+        "purple",
+        "mixed-lighting",
+        "180",
+        "takeout-friendly"
+      ],
+      "file": "digital-oche-purple.json",
+      "min_app_version": "0.9.0",
+      "profile_version": "1.0",
+      "featured": true,
+      "updated_at": "2026-09-10"
+    },
+    {
+      "id": "tournament-clean",
+      "name": "Tournament Clean",
+      "creator": "HimotheeLight",
+      "description": "Shorter, restrained match effects designed for competitive play and streams where score feedback should be clear without dominating the room.",
+      "category": "Tournament",
+      "tags": [
+        "clean",
+        "streaming",
+        "competition"
+      ],
+      "file": "tournament-clean.json",
+      "min_app_version": "0.9.0",
+      "profile_version": "1.0",
+      "featured": true,
+      "updated_at": "2026-09-10"
+    },
+    {
+      "id": "maximum-party",
+      "name": "Maximum Party",
+      "creator": "HimotheeLight",
+      "description": "A louder purple/gold celebration pack with a repeating 180 scene for casual games, events and party setups.",
+      "category": "Celebration",
+      "tags": [
+        "party",
+        "purple",
+        "gold",
+        "180"
+      ],
+      "file": "maximum-party.json",
+      "min_app_version": "0.9.0",
+      "profile_version": "1.0",
+      "featured": false,
+      "updated_at": "2026-09-10"
+    }
+  ]
+}

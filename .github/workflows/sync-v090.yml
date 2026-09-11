@@ -1,0 +1,105 @@
+name: Sync v0.9.0 Source
+
+on:
+  push:
+    branches:
+      - v0.9.0-releases-updater-community-profiles
+    paths:
+      - '.staging/v0.9.0/**'
+      - '.github/workflows/sync-v090.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconstruct staged source payload
+        shell: pwsh
+        run: |
+          @'
+          import base64, io, lzma, shutil, tarfile, zipfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          parts = sorted((root / '.staging' / 'v0.9.0').glob('part-*.b64'))
+          if not parts:
+              raise SystemExit('No staged v0.9.0 payload parts found')
+          encoded = ''.join(p.read_text(encoding='utf-8').strip() for p in parts)
+          packed = base64.b64decode(encoded, validate=True)
+          raw = lzma.decompress(packed)
+          out = root / '_v090_payload'
+          if out.exists(): shutil.rmtree(out)
+          out.mkdir()
+          bio = io.BytesIO(raw)
+          if zipfile.is_zipfile(bio):
+              bio.seek(0)
+              with zipfile.ZipFile(bio) as z:
+                  for n in z.namelist():
+                      p = Path(n)
+                      if p.is_absolute() or '..' in p.parts: raise SystemExit('Unsafe ZIP path')
+                  z.extractall(out)
+          else:
+              bio.seek(0)
+              try:
+                  with tarfile.open(fileobj=bio, mode='r:*') as t:
+                      for m in t.getmembers():
+                          p = Path(m.name)
+                          if p.is_absolute() or '..' in p.parts: raise SystemExit('Unsafe TAR path')
+                      t.extractall(out)
+              except tarfile.TarError as exc:
+                  raise SystemExit(f'Unsupported staged payload: {exc}')
+
+          candidates = [p.parent.parent for p in out.rglob('himotheelight/__init__.py')]
+          src = None
+          for c in candidates:
+              text = (c / 'himotheelight' / '__init__.py').read_text(encoding='utf-8', errors='replace')
+              if '0.9.0' in text and (c / 'app.py').exists() and (c / 'web' / 'app.js').exists():
+                  src = c; break
+          if src is None: raise SystemExit('No valid HimotheeLight v0.9.0 source root found')
+
+          directories = ['himotheelight','web','tests','browser-extension','community-profiles','tools']
+          files = ['app.py','requirements.txt','HimotheeLight.spec','README.md','CHANGELOG.md','INSTALL AUTODARTS BRIDGE.txt','Setup HimotheeLight.bat','Run HimotheeLight.bat','Run HimotheeLight - Background.bat','Build Windows EXE.bat','Build Release Package.bat','Build Release Package.ps1']
+          for d in directories:
+              source = src / d
+              if source.exists():
+                  target = root / d
+                  if target.exists(): shutil.rmtree(target)
+                  shutil.copytree(source, target)
+          for f in files:
+              source = src / f
+              if source.exists(): shutil.copy2(source, root / f)
+          for wf in ['tests.yml','release.yml']:
+              source = src / '.github' / 'workflows' / wf
+              if source.exists(): shutil.copy2(source, root / '.github' / 'workflows' / wf)
+          '@ | python -
+
+      - name: Validate readable v0.9.0 source
+        shell: pwsh
+        run: |
+          python -m compileall -q app.py himotheelight tests
+          python -m unittest discover -s tests -v
+          node --check web/app.js
+          node --check browser-extension/background.js
+          node --check browser-extension/content.js
+          node --check browser-extension/capture.js
+          python -c "from himotheelight import __version__; assert __version__ == '0.9.0'; print('HimotheeLight', __version__)"
+          if (Test-Path 'config.json') { throw 'Local config.json must not be committed' }
+          if (Test-Path 'logs') { throw 'Local logs must not be committed' }
+
+      - name: Commit readable source and remove staging payload
+        shell: pwsh
+        run: |
+          Remove-Item -Recurse -Force '_v090_payload' -ErrorAction SilentlyContinue
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A -- himotheelight web tests browser-extension community-profiles tools app.py requirements.txt HimotheeLight.spec README.md CHANGELOG.md 'INSTALL AUTODARTS BRIDGE.txt' 'Setup HimotheeLight.bat' 'Run HimotheeLight.bat' 'Run HimotheeLight - Background.bat' 'Build Windows EXE.bat' 'Build Release Package.bat' 'Build Release Package.ps1' .github/workflows/tests.yml .github/workflows/release.yml
+          git rm -r --ignore-unmatch .staging/v0.9.0 .github/workflows/sync-v090.yml
+          git commit -m 'HimotheeLight v0.9.0 - releases updater and community profiles'
+          git push origin HEAD:v0.9.0-releases-updater-community-profiles

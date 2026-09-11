@@ -24,16 +24,25 @@ jobs:
         shell: pwsh
         run: |
           @'
-          import base64, io, lzma, shutil, tarfile, zipfile
+          import base64, io, lzma, re, shutil, tarfile, zipfile
           from pathlib import Path
 
           root = Path.cwd()
           parts = sorted((root / '.staging' / 'v0.9.0').glob('part-*.b64'))
           if not parts:
               raise SystemExit('No staged v0.9.0 payload parts found')
-          encoded = ''.join(p.read_text(encoding='utf-8').strip() for p in parts)
+
+          payload_parts = []
+          for part in parts:
+              text = part.read_text(encoding='utf-8', errors='ignore')
+              runs = re.findall(r'[A-Za-z0-9+/=]{64,}', text)
+              if not runs:
+                  raise SystemExit(f'No Base64 payload segment found in {part.name}')
+              payload_parts.append(max(runs, key=len))
+          encoded = ''.join(payload_parts)
           packed = base64.b64decode(encoded, validate=True)
           raw = lzma.decompress(packed)
+
           out = root / '_v090_payload'
           if out.exists(): shutil.rmtree(out)
           out.mkdir()
